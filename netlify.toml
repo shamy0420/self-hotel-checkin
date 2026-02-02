@@ -1,0 +1,12 @@
+# Netlify configuration for Quasar SPA
+# https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  command = "npm run build"
+  publish = "dist/spa"
+
+# Quasar SPA uses hash routing by default, so no _redirects needed.
+# If you switch to history mode, add: /* /index.html 200
+
+[build.environment]
+  NODE_VERSION = "20"
