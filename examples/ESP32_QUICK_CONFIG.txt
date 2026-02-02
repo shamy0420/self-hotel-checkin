@@ -1,0 +1,56 @@
+============================================
+ESP32 ARDUINO CONFIGURATION - COPY & PASTE
+============================================
+
+// WiFi Configuration
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+
+// Firebase Configuration
+const char* firebaseProjectId = "clixsys-smart-mirror";
+const char* firebaseHost = "firestore.googleapis.com";
+const char* firebaseApiKey = "AIzaSyCuwoLX6t-zrstq-FSHdXX87WyQ22ZmlJg";
+
+// Firestore Collection
+const char* firestoreCollection = "Bookings";
+
+// HTTP Headers (add to all Firebase requests)
+http.addHeader("Content-Type", "application/json");
+http.addHeader("X-Goog-Api-Key", firebaseApiKey);
+
+// Firestore Query URL
+String url = "https://firestore.googleapis.com/v1/projects/clixsys-smart-mirror/databases/(default)/documents/Bookings";
+
+// Query Field: verificationCode
+// Return Fields: guestName, roomTypeName, checkIn, checkOut, verified, email
+
+============================================
+KEYPAD PINS (if using 4x4 matrix keypad)
+============================================
+
+Row Pins (R1-R4):
+R1 = GPIO 32
+R2 = GPIO 33
+R3 = GPIO 25
+R4 = GPIO 26
+
+Column Pins (C1-C4):
+C1 = GPIO 27
+C2 = GPIO 14
+C3 = GPIO 12
+C4 = GPIO 13
+
+============================================
+COMPLETE VALUES SUMMARY
+============================================
+
+FIREBASE_API_KEY = "AIzaSyCuwoLX6t-zrstq-FSHdXX87WyQ22ZmlJg"
+FIREBASE_PROJECT_ID = "clixsys-smart-mirror"
+FIRESTORE_COLLECTION = "Bookings"
+FIRESTORE_URL = "https://firestore.googleapis.com/v1/projects/clixsys-smart-mirror/databases/(default)/documents/Bookings"
+
+Query: verificationCode (6-digit string)
+Fields: guestName, roomTypeName, checkIn, checkOut, verified, email
+
+
+

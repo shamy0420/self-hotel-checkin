@@ -1,0 +1,8 @@
+#!/bin/bash
+# Load NVM and run quasar dev
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+npx quasar dev
+
+
+
