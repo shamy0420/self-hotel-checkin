@@ -9,7 +9,8 @@
 const EMAILJS_CONFIG = {
   serviceId: 'service_rglztaf',
   templateId: 'template_7idjxvl',
-  roomTemplateId: import.meta.env.VITE_EMAILJS_ROOM_TEMPLATE_ID || process.env.EMAILJS_ROOM_TEMPLATE_ID || 'template_ewopm33',
+  roomServiceId: 'service_8gcm5jp',
+  roomTemplateId: 'template_ewopm33',
   publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY || process.env.EMAILJS_PUBLIC_KEY || ''
 };
 
@@ -99,9 +100,9 @@ export async function sendBookingEmail(bookingData) {
       throw new Error(`EmailJS API error: ${response.statusText} - ${errorText}`);
     }
 
-    const result = await response.json();
-    console.log('Email sent successfully to:', email, result);
-    return { success: true, messageId: result.text };
+    const responseText = await response.text();
+    console.log('Email sent successfully to:', email, responseText);
+    return { success: true, messageId: responseText };
   } catch (error) {
     console.error('Error sending email:', error);
     return { success: false, error: error.message };
@@ -166,7 +167,7 @@ export async function sendRoomPasscodeEmail(bookingData) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        service_id: EMAILJS_CONFIG.serviceId,
+        service_id: EMAILJS_CONFIG.roomServiceId,
         template_id: EMAILJS_CONFIG.roomTemplateId,
         user_id: EMAILJS_CONFIG.publicKey,
         template_params: templateParams
@@ -178,9 +179,9 @@ export async function sendRoomPasscodeEmail(bookingData) {
       throw new Error(`EmailJS API error: ${response.statusText} - ${errorText}`);
     }
 
-    const result = await response.json();
-    console.log('Room passcode email sent successfully to:', email, result);
-    return { success: true, messageId: result.text };
+    const responseText = await response.text();
+    console.log('Room passcode email sent successfully to:', email, responseText);
+    return { success: true, messageId: responseText };
   } catch (error) {
     console.error('Error sending room passcode email:', error);
     return { success: false, error: error.message };

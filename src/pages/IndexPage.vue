@@ -221,24 +221,23 @@
 
         <q-card-section class="q-pt-xl">
           <div class="text-center q-mb-lg">
-            <div class="text-subtitle1 q-mb-sm">Your Verification Code:</div>
-            <div class="text-h3 text-weight-bold text-primary">
-              {{ verificationCode }}
+            <div class="text-h6 text-primary">Verification code has been sent</div>
+            <div class="text-body2 text-grey-7 q-mt-sm">
+              {{ confirmationEmail }}
             </div>
           </div>
           <q-separator class="q-mb-md" />
           <div class="text-body2 text-grey-7">
-            <p>Please save this code. You'll need it to access your room.</p>
             <p v-if="emailSent" class="text-positive q-mt-sm">
               <q-icon name="email" class="q-mr-xs" />
-              A confirmation email with this code has been sent to your email address.
+              Please check your inbox for the verification code.
             </p>
             <p v-else-if="emailError" class="text-warning q-mt-sm">
               <q-icon name="warning" class="q-mr-xs" />
-              Email could not be sent, but your booking is confirmed. Please save this code.
+              Email could not be sent. Please contact the front desk.
             </p>
             <p v-else class="text-grey-7 q-mt-sm">
-              The code will be displayed on the check-in screen at the hotel.
+              Please check your email for the verification code.
             </p>
           </div>
         </q-card-section>
@@ -279,6 +278,7 @@ const verificationCode = ref('');
 const roomPasscode = ref('');
 const emailSent = ref(false);
 const emailError = ref(false);
+const confirmationEmail = ref('');
 
 const bookingData = ref({
   guestName: '',
@@ -517,6 +517,7 @@ async function confirmBooking() {
       // Don't fail the booking if email fails
     }
 
+    confirmationEmail.value = bookingData.value.email;
     bookingDialog.value = false;
     confirmationDialog.value = true;
 
@@ -555,6 +556,7 @@ function closeConfirmation() {
   roomPasscode.value = '';
   emailSent.value = false;
   emailError.value = false;
+  confirmationEmail.value = '';
   resetSearch();
 }
 

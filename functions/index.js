@@ -207,3 +207,149 @@ Hotel Management Team
     }
   });
 
+
+// Cloud Function: Send room passcode email when booking is verified
+exports.sendRoomPasscodeOnVerification = functions.firestore
+  .document('Bookings/{bookingId}')
+  .onUpdate(async (change, context) => {
+    const before = change.before.data();
+    const after = change.after.data();
+
+    // Only process if verified field changed from false/missing to true
+    if (!before.verified && after.verified) {
+      const {
+        guestName,
+        email,
+        roomPasscode,
+        checkIn,
+        checkOut,
+        roomTypeName,
+        roomPasscodeEmailSent
+      } = after;
+
+      // Skip if already sent or no room passcode
+      if (roomPasscodeEmailSent || !roomPasscode) {
+        console.log('Skipping room passcode email - already sent or no passcode');
+        return null;
+      }
+
+      try {
+        const checkInDate = new Date(checkIn).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        const checkOutDate = new Date(checkOut).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+
+        // Create email template for room passcode
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; }
+    .header { background-color: #1976d2; color: #ffffff; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; margin: -30px -30px 30px -30px; }
+    .code-box { background-color: #e3f2fd; border: 3px dashed #1976d2; border-radius: 8px; padding: 30px; text-align: center; margin: 30px 0; }
+    .passcode { font-size: 36px; font-weight: bold; color: #1976d2; letter-spacing: 8px; font-family: 'Courier New', monospace; }
+    .info-box { background-color: #f8f9fa; border-left: 4px solid #1976d2; padding: 15px; margin: 20px 0; }
+    .footer { text-align: center; color: #666666; font-size: 12px; margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Your Room Access Code</h1>
+    </div>
+
+    <h2>Dear ${guestName},</h2>
+
+    <p>Here is the passcode for your room. Please keep it safe and do not share it.</p>
+
+    <div class="info-box">
+      <h3 style="color: #1976d2; margin-top: 0;">Stay Details</h3>
+      <p><strong>Room Type:</strong> ${roomTypeName || 'Room'}</p>
+      <p><strong>Check-in:</strong> ${checkInDate}</p>
+      <p><strong>Check-out:</strong> ${checkOutDate}</p>
+    </div>
+
+    <div class="code-box">
+      <p style="font-size: 18px; font-weight: bold; margin: 0 0 15px 0;">Your Room Passcode</p>
+      <div class="passcode">${roomPasscode}</div>
+      <p style="color: #666666; font-size: 14px; margin: 20px 0 0 0;">
+        Use this passcode to access your room during your stay.
+      </p>
+    </div>
+
+    <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 30px 0;">
+      <p style="margin: 0; color: #856404; font-size: 14px;">
+        <strong>Important:</strong> Keep this code private. For security, do not share it with anyone.
+      </p>
+    </div>
+
+    <p>We look forward to welcoming you! If you need any help, please contact the front desk.</p>
+
+    <p>Best regards,<br><strong>Hotel Management Team</strong></p>
+
+    <div class="footer">
+      <p>This is an automated email. Please do not reply to this message.</p>
+    </div>
+  </div>
+</body>
+</html>
+        `;
+
+        const mailOptions = {
+          from: `"Hotel Check-In System" <${emailConfig.auth.user}>`,
+          to: email,
+          subject: `Your Room Passcode: ${roomPasscode}`,
+          html: htmlContent,
+          text: `
+Dear ${guestName},
+
+Here is the passcode for your room: ${roomPasscode}
+
+Room Type: ${roomTypeName || 'Room'}
+Check-in: ${checkInDate}
+Check-out: ${checkOutDate}
+
+Please keep this code safe and do not share it with anyone.
+
+Best regards,
+Hotel Management Team
+          `
+        };
+
+        // Send email
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Room passcode email sent successfully:', info.messageId);
+
+        // Mark email as sent in Firestore
+        await change.after.ref.update({
+          roomPasscodeEmailSent: true,
+          roomPasscodeSentAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return { success: true, messageId: info.messageId };
+      } catch (error) {
+        console.error('Error sending room passcode email:', error);
+
+        // Log error but don't fail
+        await change.after.ref.update({
+          roomPasscodeEmailError: error.message
+        });
+
+        return { success: false, error: error.message };
+      }
+    }
+
+    return null;
+  });
+
