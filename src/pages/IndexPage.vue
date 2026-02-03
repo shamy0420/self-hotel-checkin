@@ -491,7 +491,7 @@ async function confirmBooking() {
     // Uses the email address entered in the booking form
     emailSent.value = false;
     emailError.value = false;
-    
+
     try {
       const emailResult = await sendBookingEmail({
         guestName: bookingData.value.guestName,

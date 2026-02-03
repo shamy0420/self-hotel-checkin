@@ -1,6 +1,6 @@
 /**
  * Email Service for sending booking confirmation emails
- * 
+ *
  * Uses EmailJS REST API to send hotel booking confirmation emails
  * Configuration from environment variables and provided service/template IDs
  */
