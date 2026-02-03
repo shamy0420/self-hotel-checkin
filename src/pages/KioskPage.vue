@@ -79,11 +79,16 @@ import { ref, onMounted } from 'vue';
 import { db } from 'src/boot/firebase';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { Notify } from 'quasar';
+import { sendRoomPasscodeEmail } from 'src/services/emailService';
 
 const code = ref('');
 const verifying = ref(false);
 const result = ref(null);
 const codeInput = ref(null);
+
+function generateRoomPasscode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 function clearCode() {
   code.value = '';
@@ -108,7 +113,7 @@ async function verifyCode() {
 
   try {
     const q = query(
-      collection(db, 'bookings'),
+      collection(db, 'Bookings'),
       where('verificationCode', '==', code.value)
     );
     const querySnapshot = await getDocs(q);
@@ -121,10 +126,44 @@ async function verifyCode() {
       };
 
       // Update the booking to mark it as verified
-      await updateDoc(doc(db, 'bookings', booking.id), {
+      await updateDoc(doc(db, 'Bookings', booking.id), {
         verified: true,
         verifiedAt: new Date().toISOString()
       });
+
+      // Send room passcode email after successful kiosk verification
+      try {
+        const roomPasscode = booking.roomPasscode || generateRoomPasscode();
+        const roomPasscodeEmailSent = booking.roomPasscodeEmailSent === true;
+
+        if (!booking.roomPasscode) {
+          await updateDoc(doc(db, 'Bookings', booking.id), {
+            roomPasscode
+          });
+        }
+
+        if (!roomPasscodeEmailSent && booking.email) {
+          const roomEmailResult = await sendRoomPasscodeEmail({
+            guestName: booking.guestName,
+            email: booking.email,
+            roomPasscode,
+            checkIn: booking.checkIn,
+            checkOut: booking.checkOut,
+            roomTypeName: booking.roomTypeName
+          });
+
+          if (roomEmailResult.success) {
+            await updateDoc(doc(db, 'Bookings', booking.id), {
+              roomPasscodeEmailSent: true,
+              roomPasscodeSentAt: new Date().toISOString()
+            });
+          } else {
+            console.warn('Room passcode email sending failed:', roomEmailResult.error);
+          }
+        }
+      } catch (err) {
+        console.error('Error sending room passcode email:', err);
+      }
 
       result.value = {
         success: true,

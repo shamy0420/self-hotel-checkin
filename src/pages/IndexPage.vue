@@ -276,6 +276,7 @@ const confirmationDialog = ref(false);
 const selectedRoomType = ref(null);
 const bookingLoading = ref(false);
 const verificationCode = ref('');
+const roomPasscode = ref('');
 const emailSent = ref(false);
 const emailError = ref(false);
 
@@ -318,6 +319,10 @@ function calculateTotal(pricePerNight) {
 
 // Generate verification code
 function generateVerificationCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function generateRoomPasscode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
@@ -455,8 +460,9 @@ async function confirmBooking() {
       return;
     }
 
-    // Generate verification code
+    // Generate verification code and room passcode
     verificationCode.value = generateVerificationCode();
+    roomPasscode.value = generateRoomPasscode();
 
     // Create booking document
     const booking = {
@@ -469,6 +475,7 @@ async function confirmBooking() {
       checkOut: searchDates.value.checkOut,
       guests: parseInt(bookingData.value.guests),
       verificationCode: verificationCode.value,
+      roomPasscode: roomPasscode.value,
       status: 'confirmed',
       verified: false,
       createdAt: new Date().toISOString(),
@@ -545,6 +552,7 @@ async function confirmBooking() {
 function closeConfirmation() {
   confirmationDialog.value = false;
   verificationCode.value = '';
+  roomPasscode.value = '';
   emailSent.value = false;
   emailError.value = false;
   resetSearch();

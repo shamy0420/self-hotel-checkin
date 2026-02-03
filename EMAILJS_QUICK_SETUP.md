@@ -19,7 +19,7 @@ The code is already set up to send confirmation emails with verification codes t
 2. Click **"Add New Service"**
 3. Select **"Gmail"**
 4. Click **"Connect Account"**
-5. Sign in with: `m.elshamy06@gmail.com`
+5. Sign in with: `YOUR-EMAIL`
 6. **Copy the Service ID** (looks like `service_abc123`)
 
 ### Step 3: Create Email Template
@@ -104,6 +104,29 @@ The code is already set up to send confirmation emails with verification codes t
 7. Click **"Save"**
 8. **Copy the Template ID** (looks like `template_xyz789`)
 
+### Step 3b: Create Room Passcode Template
+
+1. Click **"Email Templates"** in EmailJS dashboard
+2. Click **"Create New Template"**
+3. **Template Name**: "Room Passcode"
+4. **Subject**:
+  ```
+  Your Room Passcode: {{room_passcode}}
+  ```
+
+5. **Content**: copy and paste the HTML from [EMAILJS_ROOMCODE_TEMPLATE_HTML.txt](EMAILJS_ROOMCODE_TEMPLATE_HTML.txt)
+
+6. **Important**: Make sure these variables are in the template:
+  - `{{to_name}}`
+  - `{{to_email}}`
+  - `{{room_passcode}}`
+  - `{{room_type}}`
+  - `{{check_in}}`
+  - `{{check_out}}`
+
+7. Click **"Save"**
+8. **Copy the Room Template ID** (looks like `template_abc123`)
+
 ### Step 4: Get Your Public Key
 
 1. Click **"Account"** > **"General"** in EmailJS dashboard
@@ -120,6 +143,7 @@ The code is already set up to send confirmation emails with verification codes t
 const EMAILJS_CONFIG = {
   serviceId: 'service_abc123',      // ← Your Service ID from Step 2
   templateId: 'template_xyz789',   // ← Your Template ID from Step 3
+  roomTemplateId: 'template_abc123', // ← Your Room Template ID from Step 3b
   publicKey: 'abc123xyz'             // ← Your Public Key from Step 4
 };
 ```
