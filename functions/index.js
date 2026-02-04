@@ -208,47 +208,46 @@ Hotel Management Team
   });
 
 
-// Cloud Function: Send room passcode email when booking is verified
-exports.sendRoomPasscodeOnVerification = functions.firestore
-  .document('Bookings/{bookingId}')
-  .onUpdate(async (change, context) => {
-    const before = change.before.data();
-    const after = change.after.data();
+// Shared helper: send room passcode email and update document
+async function sendRoomPasscodeEmail(ref, data, options = {}) {
+  const { skipAlreadySent = true } = options;
+  const {
+    guestName,
+    email,
+    roomPasscode,
+    checkIn,
+    checkOut,
+    roomTypeName,
+    roomPasscodeEmailSent
+  } = data;
 
-    // Only process if verified field changed from false/missing to true
-    if (!before.verified && after.verified) {
-      const {
-        guestName,
-        email,
-        roomPasscode,
-        checkIn,
-        checkOut,
-        roomTypeName,
-        roomPasscodeEmailSent
-      } = after;
+  if (!email) {
+    console.error('Room passcode email skipped: no email on booking');
+    return { success: false, error: 'No email' };
+  }
+  if (!roomPasscode) {
+    console.error('Room passcode email skipped: no roomPasscode on booking');
+    return { success: false, error: 'No roomPasscode' };
+  }
+  if (skipAlreadySent && roomPasscodeEmailSent) {
+    console.log('Room passcode email skipped: already sent (roomPasscodeEmailSent=true)');
+    return { success: false, error: 'Already sent' };
+  }
 
-      // Skip if already sent or no room passcode
-      if (roomPasscodeEmailSent || !roomPasscode) {
-        console.log('Skipping room passcode email - already sent or no passcode');
-        return null;
-      }
+  const checkInDate = new Date(checkIn).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  const checkOutDate = new Date(checkOut).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
 
-      try {
-        const checkInDate = new Date(checkIn).toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-        const checkOutDate = new Date(checkOut).toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-
-        // Create email template for room passcode
-        const htmlContent = `
+  const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -304,14 +303,14 @@ exports.sendRoomPasscodeOnVerification = functions.firestore
   </div>
 </body>
 </html>
-        `;
+  `;
 
-        const mailOptions = {
-          from: `"Hotel Check-In System" <${emailConfig.auth.user}>`,
-          to: email,
-          subject: `Your Room Passcode: ${roomPasscode}`,
-          html: htmlContent,
-          text: `
+  const mailOptions = {
+    from: `"Hotel Check-In System" <${emailConfig.auth.user}>`,
+    to: email,
+    subject: `Your Room Passcode: ${roomPasscode}`,
+    html: htmlContent,
+    text: `
 Dear ${guestName},
 
 Here is the passcode for your room: ${roomPasscode}
@@ -324,32 +323,103 @@ Please keep this code safe and do not share it with anyone.
 
 Best regards,
 Hotel Management Team
-          `
-        };
+    `
+  };
 
-        // Send email
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Room passcode email sent successfully:', info.messageId);
+  const info = await transporter.sendMail(mailOptions);
+  console.log('Room passcode email sent successfully to', email, 'messageId:', info.messageId);
 
-        // Mark email as sent in Firestore
-        await change.after.ref.update({
-          roomPasscodeEmailSent: true,
-          roomPasscodeSentAt: admin.firestore.FieldValue.serverTimestamp()
-        });
+  await ref.update({
+    roomPasscodeEmailSent: true,
+    roomPasscodeSentAt: admin.firestore.FieldValue.serverTimestamp(),
+    roomPasscodeEmailError: admin.firestore.FieldValue.delete()
+  });
 
-        return { success: true, messageId: info.messageId };
-      } catch (error) {
-        console.error('Error sending room passcode email:', error);
+  return { success: true, messageId: info.messageId };
+}
 
-        // Log error but don't fail
+// Cloud Function: Send room passcode email when booking is verified (Bookings collection)
+function handleRoomPasscodeOnUpdate(change, context, collectionLabel) {
+  const before = change.before.data();
+  const after = change.after.data();
+  const bookingId = context.params.bookingId;
+
+  console.log(`[${collectionLabel}] Booking ${bookingId}: before.verified=${!!before.verified}, after.verified=${!!after.verified}, after.roomPasscode=${!!after.roomPasscode}, after.roomPasscodeEmailSent=${!!after.roomPasscodeEmailSent}`);
+
+  if (!before.verified && after.verified) {
+    if (after.roomPasscodeEmailSent) {
+      console.log(`[${collectionLabel}] Skipping: room passcode email already sent for ${bookingId}`);
+      return null;
+    }
+    if (!after.roomPasscode) {
+      console.error(`[${collectionLabel}] Skipping: no roomPasscode on booking ${bookingId}. Was the booking created by this web app?`);
+      return null;
+    }
+    if (!after.email) {
+      console.error(`[${collectionLabel}] Skipping: no email on booking ${bookingId}`);
+      return null;
+    }
+
+    return sendRoomPasscodeEmail(change.after.ref, after, { skipAlreadySent: true })
+      .then(result => result)
+      .catch(async (error) => {
+        console.error(`[${collectionLabel}] Error sending room passcode email:`, error);
         await change.after.ref.update({
           roomPasscodeEmailError: error.message
         });
-
         return { success: false, error: error.message };
-      }
-    }
+      });
+  }
 
-    return null;
+  return null;
+}
+
+exports.sendRoomPasscodeOnVerification = functions.firestore
+  .document('Bookings/{bookingId}')
+  .onUpdate(async (change, context) => {
+    return handleRoomPasscodeOnUpdate(change, context, 'Bookings');
   });
+
+// Also listen to lowercase 'bookings' in case kiosk or another app uses it
+exports.sendRoomPasscodeOnVerificationBookings = functions.firestore
+  .document('bookings/{bookingId}')
+  .onUpdate(async (change, context) => {
+    return handleRoomPasscodeOnUpdate(change, context, 'bookings');
+  });
+
+// Callable: resend room passcode email (e.g. if it failed or wasn't triggered)
+exports.resendRoomPasscodeEmail = functions.https.onCall(async (data, context) => {
+  const bookingId = data?.bookingId;
+  if (!bookingId || typeof bookingId !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'bookingId is required');
+  }
+
+  const db = admin.firestore();
+  let ref = db.collection('Bookings').doc(bookingId);
+  let snap = await ref.get();
+  if (!snap.exists) {
+    ref = db.collection('bookings').doc(bookingId);
+    snap = await ref.get();
+  }
+  if (!snap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Booking not found');
+  }
+
+  const docData = snap.data();
+  if (!docData.verified) {
+    throw new functions.https.HttpsError('failed-precondition', 'Booking is not verified. Verify at kiosk first.');
+  }
+  if (!docData.roomPasscode) {
+    throw new functions.https.HttpsError('failed-precondition', 'Booking has no roomPasscode.');
+  }
+  if (!docData.email) {
+    throw new functions.https.HttpsError('failed-precondition', 'Booking has no email.');
+  }
+
+  const result = await sendRoomPasscodeEmail(ref, docData, { skipAlreadySent: false });
+  if (!result.success && result.error !== 'Already sent') {
+    throw new functions.https.HttpsError('internal', result.error || 'Failed to send email');
+  }
+  return { success: true, message: 'Room passcode email sent (or was already sent).' };
+});
 
