@@ -10,3 +10,6 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # EmailJS public key is designed for client-side use; omit from secrets scan so build succeeds.
+  # Set VITE_EMAILJS_PUBLIC_KEY in Netlify UI (Site → Environment variables).
+  SECRETS_SCAN_OMIT_KEYS = "VITE_EMAILJS_PUBLIC_KEY"
